@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'">
+  <title>密码管理器</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- 认证视图 -->
+  <div id="auth-view" class="view auth-view">
+    <div class="auth-card">
+      <div class="logo-badge">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="4" y="11" width="16" height="9" rx="2.5"/>
+          <path d="M8 11V8a4 4 0 0 1 8 0v3"/>
+        </svg>
+      </div>
+      <h1 class="logo">密码管理器</h1>
+      <h2 id="auth-title">创建主密码</h2>
+      <p id="auth-hint" class="hint"></p>
+      <form id="auth-form" autocomplete="off">
+        <input type="password" id="auth-password" placeholder="主密码" autocomplete="new-password">
+        <input type="password" id="auth-confirm" placeholder="确认主密码" autocomplete="new-password" hidden>
+        <button type="submit" id="auth-submit">创建保险库</button>
+      </form>
+      <p id="auth-error" class="error"></p>
+    </div>
+  </div>
+
+  <!-- 主视图 -->
+  <div id="main-view" class="view main-view" hidden>
+    <header class="toolbar">
+      <input type="search" id="search" placeholder="搜索标题 / 用户名 / 网址...">
+      <button id="btn-new" class="btn primary">新建条目</button>
+      <button id="btn-generator" class="btn">密码生成器</button>
+      <span class="spacer"></span>
+      <button id="btn-import" class="btn">导入</button>
+      <button id="btn-export" class="btn">导出</button>
+      <button id="btn-settings" class="btn">设置</button>
+      <button id="btn-lock" class="btn danger">锁定</button>
+    </header>
+    <div class="layout">
+      <aside class="list-pane">
+        <ul id="entry-list"></ul>
+        <p id="empty" class="empty">
+          <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3a4 4 0 0 0-4 4v3H7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-1V7a4 4 0 0 0-4-4z"/>
+          </svg>
+          <span>暂无条目，点击「新建条目」开始</span>
+        </p>
+      </aside>
+      <section class="detail-pane">
+        <div id="detail-empty" class="empty">
+          <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="4" width="16" height="16" rx="2.5"/>
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M9 12a3 3 0 0 1 3-3"/>
+          </svg>
+          <span>选择左侧条目查看详情</span>
+        </div>
+        <div id="detail-content" hidden></div>
+      </section>
+    </div>
+  </div>
+
+  <!-- 条目编辑弹窗 -->
+  <div id="entry-modal" class="modal" hidden>
+    <div class="modal-backdrop" data-close="entry"></div>
+    <div class="modal-card">
+      <h3 id="entry-modal-title">新建条目</h3>
+      <form id="entry-form" autocomplete="off">
+        <label>标题<input type="text" id="entry-title" placeholder="例如：GitHub"></label>
+        <label>用户名<input type="text" id="entry-username" placeholder="用户名 / 邮箱"></label>
+        <label>密码
+          <div class="row">
+            <input type="password" id="entry-password" placeholder="密码">
+            <button type="button" class="mini" data-action="toggle-password">显示</button>
+            <button type="button" class="mini" data-action="gen-fill">生成</button>
+          </div>
+        </label>
+        <label>网址<input type="text" id="entry-url" placeholder="https://..."></label>
+        <label>备注<textarea id="entry-notes" rows="3" placeholder="备注"></textarea></label>
+        <label>两步验证（TOTP）<input type="text" id="entry-totp" placeholder="otpauth:// 链接或 base32 密钥"></label>
+        <div class="modal-actions">
+          <button type="button" class="btn" data-close="entry">取消</button>
+          <button type="submit" class="btn primary">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 密码生成器弹窗 -->
+  <div id="generator-modal" class="modal" hidden>
+    <div class="modal-backdrop" data-close="generator"></div>
+    <div class="modal-card">
+      <h3>密码生成器</h3>
+      <div class="gen-output" id="gen-output"></div>
+      <p class="gen-bits" id="gen-bits"></p>
+      <div class="gen-controls">
+        <label>长度 <input type="number" id="gen-length" min="4" max="128" value="16">
+          <input type="range" id="gen-length-range" min="4" max="128" value="16">
+        </label>
+        <div class="checks">
+          <label><input type="checkbox" id="gen-upper" checked> 大写字母</label>
+          <label><input type="checkbox" id="gen-lower" checked> 小写字母</label>
+          <label><input type="checkbox" id="gen-digits" checked> 数字</label>
+          <label><input type="checkbox" id="gen-symbols" checked> 符号</label>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="gen-regen">重新生成</button>
+        <button type="button" class="btn primary" id="gen-copy">复制</button>
+        <button type="button" class="btn" data-close="generator">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 设置弹窗 -->
+  <div id="settings-modal" class="modal" hidden>
+    <div class="modal-backdrop" data-close="settings"></div>
+    <div class="modal-card">
+      <h3>设置</h3>
+      <div class="settings-group">
+        <label class="settings-label">自动锁定（空闲超时）</label>
+        <select id="auto-lock-select">
+          <option value="0">关闭</option>
+          <option value="1">1 分钟</option>
+          <option value="5" selected>5 分钟</option>
+          <option value="15">15 分钟</option>
+          <option value="30">30 分钟</option>
+        </select>
+      </div>
+      <div class="settings-group">
+        <label class="settings-label">数据导入 / 导出（明文）</label>
+        <div class="settings-actions">
+          <button type="button" class="btn" id="btn-export-csv">导出 CSV</button>
+          <button type="button" class="btn" id="btn-export-json">导出 JSON</button>
+          <button type="button" class="btn" id="btn-import-csv">导入 CSV</button>
+          <button type="button" class="btn" id="btn-import-json">导入 JSON</button>
+        </div>
+        <p class="muted-hint">CSV / JSON 为明文格式，导出后请妥善保管。</p>
+      </div>
+      <div class="settings-group">
+        <label class="settings-label">加密备份（.pmbackup，需主密码）</label>
+        <div class="settings-actions">
+          <button type="button" class="btn" id="btn-backup">导出加密备份</button>
+          <button type="button" class="btn" id="btn-restore">恢复加密备份</button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn primary" data-close="settings">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 主密码确认弹窗（加密备份） -->
+  <div id="backup-modal" class="modal" hidden>
+    <div class="modal-backdrop" data-close="backup"></div>
+    <div class="modal-card">
+      <h3 id="backup-modal-title">导出加密备份</h3>
+      <p class="hint" id="backup-modal-hint">输入主密码以加密备份</p>
+      <input type="password" id="backup-password" placeholder="主密码" autocomplete="off">
+      <p id="backup-error" class="error"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn" data-close="backup">取消</button>
+        <button type="button" class="btn primary" id="backup-confirm">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
